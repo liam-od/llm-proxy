@@ -3,25 +3,30 @@ import subprocess
 from litellm.llms.custom_llm import CustomLLM
 from litellm.types.utils import Choices, Message, ModelResponse, Usage
 
-EFFORT_SUPPORTED_MODELS = ("sonnet", "opus")
+EFFORT_BY_MODEL = {
+    "sonnet": "medium",
+    "opus": "high",
+}
 
 
 class ClaudeCodeLLM(CustomLLM):
-    """Runs the claude-code CLI binary as a completion backend."""
+    """Runs the claude-code CLI binary as a completion backend.
 
-    def __init__(self, model: str | None = None, effort: str | None = None):
-        self._model = model
-        self._effort = effort
+    The model name is taken from each request, so a single instance serves
+    haiku/sonnet/opus. Reasoning effort is looked up per model.
+    """
 
     def _build_prompt(self, messages: list) -> str:
         return "\n".join(f"{m['role']}: {m['content']}" for m in messages)
 
-    def _run(self, messages: list) -> str:
-        cmd = ["claude", "-p", self._build_prompt(messages)]
-        if self._model:
-            cmd += ["--model", self._model]
-        if self._effort and self._model and any(m in self._model for m in EFFORT_SUPPORTED_MODELS):
-            cmd += ["--effort", self._effort]
+    def _resolve_model(self, model: str) -> str:
+        return model.split("/", 1)[1] if "/" in model else model
+
+    def _run(self, model: str, messages: list) -> str:
+        resolved = self._resolve_model(model)
+        cmd = ["claude", "-p", self._build_prompt(messages), "--model", resolved]
+        if effort := EFFORT_BY_MODEL.get(resolved):
+            cmd += ["--effort", effort]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         return result.stdout.strip()
 
@@ -33,12 +38,10 @@ class ClaudeCodeLLM(CustomLLM):
         )
 
     def completion(self, model: str, messages: list, **kwargs) -> ModelResponse:
-        return self._build_response(model, self._run(messages))
+        return self._build_response(model, self._run(model, messages))
 
     async def acompletion(self, model: str, messages: list, **kwargs) -> ModelResponse:
         return self.completion(model=model, messages=messages, **kwargs)
 
 
-haiku = ClaudeCodeLLM(model="haiku")
-sonnet = ClaudeCodeLLM(model="sonnet", effort="medium")
-opus = ClaudeCodeLLM(model="opus", effort="high")
+claude_code = ClaudeCodeLLM()

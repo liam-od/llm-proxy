@@ -4,16 +4,14 @@ model_list:
       model: github_copilot/gpt-4o-mini
   - model_name: haiku
     litellm_params:
-      model: claude/haiku
+      model: claude-code/haiku
   - model_name: sonnet
     litellm_params:
-      model: claude/sonnet
+      model: claude-code/sonnet
   - model_name: opus
     litellm_params:
-      model: claude/opus
+      model: claude-code/opus
 
 litellm_settings:
   custom_provider_map:
-    - { "provider": "claude", "custom_handler": handlers.claude.haiku }
-    - { "provider": "claude", "custom_handler": handlers.claude.sonnet }
-    - { "provider": "claude", "custom_handler": handlers.claude.opus }
+    - { "provider": "claude-code", "custom_handler": handlers.claude.claude_code }

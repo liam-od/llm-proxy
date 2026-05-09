@@ -40,7 +40,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 model = OpenAIChatModel(
-    "claude/haiku",
+    "haiku",
     provider=OpenAIProvider(base_url="http://localhost:4001/v1", api_key="anything"),
 )
 agent = Agent(model)
@@ -55,7 +55,7 @@ Or with LangChain:
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    model="claude/haiku",
+    model="haiku",
     base_url="http://localhost:4001/v1",
     api_key="anything",
 )
@@ -63,3 +63,15 @@ llm = ChatOpenAI(
 response = llm.invoke("hello")
 print(response.content)
 ```
+
+## Configuration
+
+Proxy settings live in [`config.yaml`](./config.yaml). Each entry under `model_list` defines a public
+alias (`model_name`) that clients pass as `model="..."`, mapped to a `<provider>/<model>` routing
+string in `litellm_params.model`. Custom providers are registered under
+`litellm_settings.custom_provider_map`, pointing at a `CustomLLM` instance. The Claude Code handler
+lives in [`handlers/claude.py`](./handlers/claude.py).
+
+To add a new alias, add an entry to `model_list`. To add a new backend, write a `CustomLLM`
+subclass and register it under a new `provider` name.
+

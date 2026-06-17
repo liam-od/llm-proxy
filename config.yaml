@@ -24,9 +24,14 @@ model_list:
       api_key: os.environ/VLLM_API_KEY
       timeout: 600
       max_retries: 10
+  # hosted_vllm (not openai/): the openai whisper transform forcibly rewrites
+  # response_format to verbose_json for cost-duration, which this vLLM backend
+  # rejects (400). hosted_vllm passes response_format through untouched. It's an
+  # openai-compatible provider, so the SDK client appends /audio/transcriptions
+  # to api_base — keep the /v1 here (no get_complete_url path involved).
   - model_name: modal-transcribe
     litellm_params:
-      model: openai/transcribe
+      model: hosted_vllm/transcribe
       api_base: https://liamgregoryod--pensieve-transcribe.us-east.modal.direct/v1
       api_key: os.environ/VLLM_API_KEY
       timeout: 600
@@ -36,6 +41,9 @@ model_list:
   - model_name: modal-embed
     litellm_params:
       model: modal/embed
+      # The openai SDK defaults embeddings to encoding_format=base64; the modal
+      # custom handler declares no such param, so drop it rather than 400.
+      drop_params: true
     model_info:
       mode: embedding
 

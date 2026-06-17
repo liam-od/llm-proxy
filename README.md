@@ -75,3 +75,47 @@ lives in [`handlers/claude.py`](./handlers/claude.py).
 To add a new alias, add an entry to `model_list`. To add a new backend, write a `CustomLLM`
 subclass and register it under a new `provider` name.
 
+## Modal-backed aliases (Pensieve inference)
+
+Three aliases front the deployed `pensieve` Modal app, so any OpenAI client gets transcription,
+chat, and embeddings without touching Modal:
+
+| alias | endpoint | backend |
+| --- | --- | --- |
+| `modal-llm` | `POST /v1/chat/completions` | the `pensieve-llm` vLLM server (HTTP) |
+| `modal-transcribe` | `POST /v1/audio/transcriptions` | the `pensieve-transcribe` vLLM server (HTTP) |
+| `modal-embed` | `POST /v1/embeddings` | the `Embedder` Modal class, via RPC ([`handlers/modal_embed.py`](./handlers/modal_embed.py)) |
+
+The embedder has no HTTP endpoint (it's a Modal class, not a web server), so `modal-embed` is a
+`CustomLLM` that calls `Embedder.embed_documents.remote(...)`. This is the only piece that needs
+Modal credentials — clients never do.
+
+Required environment (the proxy holds the secrets; clients see none of them):
+
+```bash
+VLLM_API_KEY=        # bearer for the two vLLM endpoints
+MODAL_TOKEN_ID=      # Modal auth for the embedder RPC (from `modal token current`)
+MODAL_TOKEN_SECRET=
+```
+
+## Docker
+
+```bash
+docker build -t llm-proxy .
+docker run -p 4001:4001 --env-file .env llm-proxy   # .env holds the vars above
+```
+
+The image serves only the Modal aliases (the `claude-code` ones need the `claude` CLI, absent here).
+
+## Securing a hosted deployment
+
+By default the proxy is open (clients send `api_key="anything"`). When you expose it, set a master
+key so callers can't burn your Modal/GPU credits — add to `config.yaml`:
+
+```yaml
+general_settings:
+  master_key: os.environ/PROXY_MASTER_KEY
+```
+
+and pass `PROXY_MASTER_KEY` in the environment; clients then send it as their API key.
+

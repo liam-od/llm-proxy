@@ -3,3 +3,6 @@ serve:
 
 test:
 	@uv run python tests/test.py
+
+auth:
+	@uv run python scripts/copilot_auth.py

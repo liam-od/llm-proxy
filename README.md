@@ -16,6 +16,7 @@ but on the upside we get the full agent experience with tool calls.
 ## Usage
 
 Start the proxy on port 4001 (see Makefile) with `make serve` and run tests with `make test`.
+`make auth` (re)authenticates the GitHub Copilot model (`mini`) via GitHub's device-code login.
 
 The server exposes an OpenAI-compatible endpoint at `http://localhost:4001/v1`. Any OpenAI SDK
 client can point at it:

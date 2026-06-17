@@ -14,16 +14,23 @@ model_list:
 
   # Pensieve inference — Modal-hosted vLLM over HTTP, plus the RPC embedder.
   # URLs aren't secret; the bearer (VLLM_API_KEY) + Modal tokens are env-only.
+  # timeout/max_retries are per-model so a cold Modal 503 (Flash restoring its
+  # snapshot) is ridden out HERE, not on the claude/copilot aliases; the openai
+  # client retries the 503 quietly, and Pensieve backstops a long restore.
   - model_name: modal-llm
     litellm_params:
       model: openai/llm
       api_base: https://liamgregoryod--pensieve-llm.us-east.modal.direct/v1
       api_key: os.environ/VLLM_API_KEY
+      timeout: 600
+      max_retries: 10
   - model_name: modal-transcribe
     litellm_params:
       model: openai/transcribe
       api_base: https://liamgregoryod--pensieve-transcribe.us-east.modal.direct/v1
       api_key: os.environ/VLLM_API_KEY
+      timeout: 600
+      max_retries: 10
     model_info:
       mode: audio_transcription
   - model_name: modal-embed
@@ -33,10 +40,11 @@ model_list:
       mode: embedding
 
 litellm_settings:
-  # Modal Flash containers 503 while cold; retry a few times and allow a slow
-  # snapshot restore to finish rather than timing the request out.
-  num_retries: 3
-  request_timeout: 600
   custom_provider_map:
     - { "provider": "claude-code", "custom_handler": handlers.claude.claude_code }
     - { "provider": "modal", "custom_handler": handlers.modal_embed.modal_embedder }
+
+router_settings:
+  # One deployment per model, so a cooldown just yields "no fallbacks" — keep the
+  # cold modal deployment in rotation so its retries can actually probe it.
+  disable_cooldowns: true
